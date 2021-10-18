@@ -1,0 +1,129 @@
+---
+title: "assignment3"
+author: "rama krishna"
+date: "10/17/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("C:/Users/krish/OneDrive/Desktop/R_MLCODES/rmullapu_64060")
+
+library(caret)
+library(gmodels)
+library(ISLR)
+library(e1071)
+
+Bank <- read.csv("UniversalBank.csv")
+
+Bank$Personal.Loan <- as.factor(Bank$Personal.Loan)
+Bank$CreditCard <- as.factor(Bank$CreditCard)
+Bank$Online <- as.factor(Bank$Online)
+```
+# partitioning the data into training (60%) and validation (40%) sets.
+
+```{r}
+set.seed(100)
+
+Bank_index <- createDataPartition(Bank$Age, p=0.4, list = FALSE)
+Bank_valid <- Bank[Bank_index,]
+summary(Bank_valid)
+Bank_train <- Bank[-Bank_index,]
+summary(Bank_train)
+```
+{A}. Create a pivot table for the training data with Online as a column variable, CC as a row 
+variable, and Loan as a secondary row variable. The values inside the table should convey 
+the count. In R use functions melt() and cast(), or function table(). In Python, use panda 
+dataframe methods melt() and pivot().
+
+```{r}
+# the pivot table should consists of only data of online, personal.loan, credit card and the ftable does not taking exclude = c(1:9)
+
+Bank_valid1 <- Bank_valid[,c(10,13,14)]
+summary(Bank_valid1)
+
+Bank_train1 <- Bank_train[,c(10,13,14)]
+summary(Bank_train1)
+
+ftable(Bank_train1, row.vars = c(3,1), col.vars = "Online")
+```
+{B} Consider the task of classifying a customer who owns a bank credit card and is actively using 
+online banking services. Looking at the pivot table, what is the probability that this customer 
+will accept the loan offer? 
+
+This is the probability of loan acceptance (Loan = 1) conditional on 
+having a bank credit card (CC = 1) and being an active user of online banking services (Online 
+= 1).
+
+p(loan=1 | CC= 1, Online=1) = 57/ (469+57) = 0.10836501
+```{r}
+a = table(Bank_train1[,c(1,2,3)])
+b<- as.data.frame(a)
+b
+View(b)
+```
+{C} Create two separate pivot tables for the training data. One will have Loan (rows) as a 
+function of Online (columns) and the other will have Loan (rows) as a function of CC.
+
+```{r}
+ftable(Bank_train1, row.vars ="Personal.Loan", col.vars = "Online")
+ftable(Bank_train1, row.vars ="Personal.Loan", col.vars = "CreditCard")
+```
+{D} Compute the following quantities [P(A | B) means “the probability ofA given B”]: 
+
+i. A = P(CC = 1 | Loan = 1) (the proportion of credit card holders among the loan acceptors
+    A= 0.30519
+
+```{r}
+m<-table(Bank_train[,c(14,10)])
+m
+View(m)
+#S1<-m[2,2]/(m[2,2]+m[1,2])
+#ANSWER:-> p(CC =1 | Loan = 1) = 94/(94+214) = 0.30519.
+#S1
+```
+ii. B = P(Online = 1 | Loan = 1) = 0.607142
+```{r}
+n<- table(Bank_train[,c(13,10)])
+View(n)
+#ANSWER: -> p(Online =1 | Loan=1) = 187/(187+121) = 0.607142
+```
+iii. C = P(Loan = 1)   (the proportion of loan acceptors)
+
+     C= p(Loan = 1) = (84+130+37+57)/(1904+214+787+94) = 308/2999
+                   C= 0.1027009
+                  
+iv.D = P(CC = 1 | Loan = 0)  = 318/(318+757)
+                           D = 0.295813
+                        
+v. E = P(Online = 1 | Loan = 0) = 1616/(1616+1075) = 0.6005203
+
+vi. F =  P(Loan = 0) = (757+1147+318+469) /(1904+214+787+94) = 2691/ 2999
+               F = 0.8972991
+ 
+{E} Use the quantities computed above to compute the naive Bayes probability P(Loan = 1 | CC 
+= 1, Online = 1).
+```{r}
+A=0.3052
+B=0.6071
+C=0.1027
+D=0.2958
+E=0.6005
+F=0.8973
+ NBP <- (A*B*C)/ ((A*B*C)+ (D*E*F))
+ NBP 
+```
+{F} Compare this value with the one obtained from the pivot table in (B). Which is a more accurate estimate?
+
+ANS:- The value obtained from pivot table in (B) is 0.10836501 and the value obtained from naive bayes probability is 0.106656.There is a very little difference between the values which is 0.00170901.The value of the pivot table is more accurate because pivot table does not assume that probabilities are independent.
+
+{G} Which of the entries in this table are needed for computing P(Loan = 1 | CC = 1, Online = 1)? Run naive Bayes on the data. Examine the model output on training data, and find the entry that corresponds to P(Loan = 1 | CC = 1, Online = 1). Compare this to the number you obtained in (E)
+
+```{r}
+#set.seed(150)
+naivebayes <- naiveBayes(Personal.Loan~.,data=Bank_train1)
+naivebayes
+```
+the output value that we got in the naivebayes calculation is same as the value that in E..
