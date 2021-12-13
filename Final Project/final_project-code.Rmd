@@ -1,0 +1,127 @@
+---
+title: "FINAL_PROJECT"
+author: "rama krishna"
+date: "12/9/2021"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(tidyverse)
+library(cluster)
+library(factoextra)
+setwd("C:/Users/krish/OneDrive/Desktop/R_MLCODES/64060_final project")
+finaldata <- read.csv("ML_Project-Data.csv")
+head(finaldata)
+```
+# Modify the column names for easy reference 
+```{r}
+colnames(finaldata) <- c('major', 'starting_salary', 'midcareer_salary', 'career_growth_inpercentage' , 'percent10_salary' , 'percent25_salary', 'percent75_salary' , 'percent90_salary')
+#View(finaldata)
+```
+#remove the dollar sign from the data .
+```{r}
+majors <- finaldata['major']
+majors
+salary <- finaldata %>%
+          select(-major) %>%
+          mutate_all(function(x) as.numeric(gsub("[\\$,]", "",x))) %>% 
+          mutate(career_growth_inpercentage = career_growth_inpercentage/100)
+a<- bind_cols(majors, salary)
+head(a)
+```
+# determining the optimal number of clusters based on starting_salary , midcareer_salary, 10percent_salary, 90percent_salary.
+```{r}
+kdata <- a %>% 
+  select(starting_salary, midcareer_salary,percent10_salary, percent90_salary) %>% scale()
+head(kdata)
+```
+# determine the number of clusters by using elbow method
+```{r}
+fviz_nbclust(kdata,kmeans, method="wss") + labs(subtitle = "ELBOW METHOD")
+```
+# determine the number of clusters by using silhouette method 
+```{r}
+fviz_nbclust(kdata,kmeans, method="silhouette") + labs(subtitle = "silhouette method")
+```
+# determine the number of clusters of gap statistic method
+```{r}
+gap <- clusGap(kdata, FUN = kmeans, nstart = 25,
+                    K.max = 10, B = 50)
+fviz_gap_stat(gap)
+```
+# Set k equal to the optimal number of clusters which is 3 since k=3 from elbow method and gap statistics and run kmeans algorithm and visualize the clusters.
+```{r}
+set.seed(7)
+num_clusters <- 3
+k_means <- kmeans(kdata , num_clusters , iter.max = 15, nstart = 25)
+a$clusters <- k_means[[1]]
+
+salary_increment<- ggplot(a,
+                        aes(x=starting_salary,
+                            y=midcareer_salary,color=factor(clusters))) +
+                  scale_x_continuous(labels=scales::dollar)+
+                  scale_y_continuous(labels=scales::dollar)+
+                  geom_point(alpha=4/5,size=6)+
+                  labs(x="Starting Salary",y="Mid Career Salary",
+                       title="Clustering by Starting Salary vs. Mid Career Salary",
+                      colour="Clusters")+
+                  scale_colour_manual(values=c("#EC2C73", "#29AEC7", "#FFDD30"))
+# visualize the output
+salary_increment
+```
+```{r}
+ggplot(a, aes(starting_salary,midcareer_salary))+ geom_point(alpha = 0.6)+ 
+  geom_smooth(se = F) +  #loses fit 
+  scale_x_continuous(labels=scales::dollar)+
+                  scale_y_continuous(labels=scales::dollar)
+```
+```{r}
+paste('correlation coefficient',
+      round(with(a, cor(starting_salary,midcareer_salary)), 4))
+```
+```{r}
+salary_variation <- a %>% select(major,percent10_salary, percent25_salary, midcareer_salary, percent75_salary, percent90_salary, clusters) %>% gather(key = percentage, value = salary, -c(major, clusters))
+
+salary_variation$percentage = factor(salary_variation$percentage,levels = c('percent10_salary', 'percent25_salary', 'midcareer_salary',               'percent75_salary', 'percent90_salary'))
+```
+
+```{r}
+cluster_1 <- salary_variation %>% filter(clusters==1) %>%
+          ggplot(aes(x=percentage,y=salary,group=major,color=major, order=salary))+
+          geom_point()+
+          geom_line()+
+          labs(title="Cluster 1: Average Earners")+
+          theme(axis.text.x = element_text(size=7,angle=25))
+cluster_1
+```
+```{r}
+cluster_2 <- salary_variation %>% filter(clusters==2) %>%
+          ggplot(aes(x=percentage,y=salary,group=major,color=major, order=salary))+
+          geom_point()+
+          geom_line()+
+          labs(title="Cluster 2: Slow Earners")+
+          theme(axis.text.x = element_text(size=7,angle=25))
+cluster_2
+```
+
+```{r}
+cluster_3 <- salary_variation %>% filter(clusters==3) %>%
+          ggplot(aes(x=percentage,y=salary,group=major,color=major, order=salary))+
+          geom_point()+
+          geom_line()+
+          labs(title="Cluster 3: The Over Achievers")+
+          theme(axis.text.x = element_text(size=7,angle=25))
+cluster_3
+```
+# arranging the majors in the descending order of the career percentage growth.
+```{r}
+a <- a %>% arrange(desc(career_growth_inpercentage))
+head(a,8)
+```
+
+
